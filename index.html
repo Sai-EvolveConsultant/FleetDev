@@ -667,6 +667,137 @@ body::before {
 .kpi:nth-child(3) { animation-delay: 0.12s; }
 .kpi:nth-child(4) { animation-delay: 0.16s; }
 .kpi:nth-child(5) { animation-delay: 0.20s; }
+
+/* ═══════════════════════════════════════════════
+   MOBILE BOTTOM NAV
+═══════════════════════════════════════════════ */
+.mobile-nav {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  background: var(--surface);
+  border-top: 1px solid var(--border2);
+  padding: 6px 0 max(6px, env(safe-area-inset-bottom));
+}
+.mobile-nav-inner {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.mob-tab {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px 4px; cursor: pointer; border-radius: 8px;
+  transition: all 0.15s; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mob-tab-icon  { font-size: 20px; line-height: 1; }
+.mob-tab-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); transition: color 0.15s;
+}
+.mob-tab.active .mob-tab-label { color: var(--accent); }
+.mob-tab.active .mob-tab-icon  { filter: drop-shadow(0 0 6px var(--accent)); }
+
+/* ═══════════════════════════════════════════════
+   TABLET  ≤ 900px
+═══════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .kpi-row { grid-template-columns: repeat(3, 1fr); }
+  .kpi:nth-child(4), .kpi:nth-child(5) { display: none; }
+  .dash-grid   { grid-template-columns: 1fr; }
+  .maint-cards { grid-template-columns: repeat(2, 1fr); }
+  .report-grid { grid-template-columns: 1fr; }
+  .map-side    { width: 240px; }
+  .fleet-row   { grid-template-columns: 30px 1fr 90px 80px; }
+  .fleet-row > :nth-child(5),
+  .fleet-row > :nth-child(6),
+  .fleet-row > :nth-child(7) { display: none; }
+  .fleet-row.hdr > :nth-child(5),
+  .fleet-row.hdr > :nth-child(6),
+  .fleet-row.hdr > :nth-child(7) { display: none; }
+}
+
+/* ═══════════════════════════════════════════════
+   MOBILE  ≤ 640px
+═══════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  /* Allow full-page scroll */
+  html, body { height: auto; overflow: auto; }
+  .shell { overflow: visible; }
+  .view { overflow: visible; }
+  .view.active { display: block; }
+
+  /* Topbar */
+  .topbar { height: auto; padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+  .logo-block  { border-right: none; padding-right: 0; }
+  .logo-name   { font-size: 15px; }
+  .logo-tag    { display: none; }
+  .nav-tabs    { display: none; }
+  .time-display { display: none; }
+  .alert-pill  { font-size: 10px; padding: 3px 8px; }
+
+  /* Mobile bottom nav */
+  .mobile-nav { display: block; }
+  #view-dashboard, #view-maintenance, #view-reports { padding-bottom: 80px; }
+
+  /* KPIs — 2 col */
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .kpi:nth-child(4), .kpi:nth-child(5) { display: block; }
+  .kpi-value { font-size: 26px; }
+
+  /* Dash grid — single col */
+  .dash-grid { grid-template-columns: 1fr; gap: 12px; }
+
+  /* Fleet table → flex cards */
+  .fleet-row {
+    display: flex; flex-wrap: wrap;
+    padding: 12px 14px; gap: 6px; align-items: flex-start;
+  }
+  .fleet-row.hdr { display: none; }
+  .fleet-row > * { display: block !important; }
+  .v-icon { width: 36px; height: 36px; flex-shrink: 0; }
+  .fleet-row > div:nth-child(2) { flex: 1; min-width: 0; }
+  .fleet-row > div:nth-child(3),
+  .fleet-row > div:nth-child(4),
+  .fleet-row > div:nth-child(5),
+  .fleet-row > div:nth-child(6),
+  .fleet-row > div:nth-child(7) { width: calc(50% - 24px); font-size: 11px; }
+  .fuel-cell { gap: 4px; }
+  .fuel-pct  { font-size: 10px; width: 24px; }
+
+  /* Alerts */
+  .alerts-scroll { max-height: 300px; overflow-y: auto; }
+
+  /* Map — stacked */
+  #view-map { flex-direction: column; min-height: 100vh; padding-bottom: 70px; }
+  .map-canvas { height: 55vw; min-height: 240px; flex: none; }
+  .map-side   { width: 100%; border-left: none; border-top: 1px solid var(--border); max-height: 300px; }
+  .map-search { width: 180px; font-size: 11px; padding: 7px 10px; }
+
+  /* Maintenance */
+  .maint-cards { grid-template-columns: 1fr; }
+  .maint-kpis  { grid-template-columns: repeat(2, 1fr); }
+  .wo-wrap     { overflow-x: auto; }
+  .wo-table    { min-width: 600px; }
+
+  /* Reports */
+  .report-kpis { grid-template-columns: repeat(2, 1fr); }
+  .report-grid { grid-template-columns: 1fr; }
+  .score-panel { overflow-x: auto; }
+  .score-table { min-width: 560px; }
+  .bar-area    { height: 120px; }
+  .donut-area  { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+
+/* ═══════════════════════════════════════════════
+   SMALL PHONES  ≤ 380px
+═══════════════════════════════════════════════ */
+@media (max-width: 380px) {
+  .kpi-row   { grid-template-columns: 1fr 1fr; }
+  .kpi-value { font-size: 22px; }
+  .topbar    { padding: 8px 10px; }
+  .logo-name { font-size: 13px; }
+}
 </style>
 </head>
 <body>
@@ -1298,6 +1429,28 @@ body::before {
 
 </div><!-- /shell -->
 
+<!-- ═══ MOBILE BOTTOM NAV ═══ -->
+<div class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <div class="mob-tab active" onclick="switchView('dashboard',this)" data-view="dashboard">
+      <div class="mob-tab-icon">◈</div>
+      <div class="mob-tab-label">Dashboard</div>
+    </div>
+    <div class="mob-tab" onclick="switchView('map',this)" data-view="map">
+      <div class="mob-tab-icon">◉</div>
+      <div class="mob-tab-label">Live Map</div>
+    </div>
+    <div class="mob-tab" onclick="switchView('maintenance',this)" data-view="maintenance">
+      <div class="mob-tab-icon">◧</div>
+      <div class="mob-tab-label">Maintenance</div>
+    </div>
+    <div class="mob-tab" onclick="switchView('reports',this)" data-view="reports">
+      <div class="mob-tab-icon">▦</div>
+      <div class="mob-tab-label">Reports</div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ─── Vehicle data from uploaded Excel ────────────────────────────────────────
 const FLEET = [
@@ -1460,8 +1613,17 @@ const VIEW_TITLES = {
 function switchView(name, el) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
   if (el) el.classList.add('active');
+  // Sync whichever nav wasn't clicked
+  document.querySelectorAll('.nav-tab, .mob-tab').forEach(t => {
+    if ((t.getAttribute('onclick') || '').includes("'" + name + "'")) {
+      t.classList.add('active');
+    }
+  });
+  // Scroll to top on mobile when switching views
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
