@@ -4,6 +4,7 @@ const MobileNav = ({ currentView = 'dashboard', onNavigate = () => {} }) => {
 		{ id: 'map', icon: '◉', label: 'Live Map' },
 		{ id: 'maintenance', icon: '◧', label: 'Maintenance' },
 		{ id: 'reports', icon: '▦', label: 'Reports' },
+		{ id: 'inventory', icon: '◫', label: 'Inventory' },
 	];
 
 	return (

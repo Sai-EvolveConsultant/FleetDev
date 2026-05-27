@@ -1,26 +1,23 @@
 import { useState, useEffect } from 'react'
-import { FLEET as INITIAL_FLEET } from './Data/Vehicles.jsx'
+
 import Topbar from './Components/topbar.jsx'
 import MobileNav from './Components/MobileNav.jsx'
 import Dashboard from './Views/Dashboard.jsx'
 import Livemap from './Views/Livemap.jsx'
 import Maintenance from './Views/Maintenance.jsx'
 import Reports from './Views/Reports.jsx'
+import Inventory from './Views/Inventory.jsx'
 
 function App() {
   const [activeView, setActiveView] = useState('dashboard')
   const [selectedVehicle, setSelectedVehicle] = useState(null)
-  const [fleet, setFleet] = useState(() => INITIAL_FLEET.map(v => ({ ...v })))
+  const [fleet, setFleet] = useState([])
 
   useEffect(() => {
-    // tickFuel: decrement fuel slightly every interval and update fleet state
-    const id = setInterval(() => {
-      setFleet(prev => prev.map(v => {
-        const decay = Math.random() * 1.2
-        return { ...v, fuel: Math.max(0, Math.round(v.fuel - decay)) }
-      }))
-    }, 5000)
-    return () => clearInterval(id)
+    fetch(`${import.meta.env.VITE_API_URL}/api/vehicles`)
+      .then(res => res.json())
+      .then(data => setFleet(data))
+      .catch(err => console.error('Failed to fetch fleet:', err))
   }, [])
 
   return (
@@ -49,9 +46,10 @@ function App() {
           }}
         />
 
-        <Maintenance active={activeView === 'maintenance'} />
+       <Maintenance active={activeView === 'maintenance'} />
+       <Inventory active={activeView === 'inventory'} />
 
-        <Reports fleet={fleet} active={activeView === 'reports'} />
+       <Reports fleet={fleet} active={activeView === 'reports'} />
 
       </div>
 

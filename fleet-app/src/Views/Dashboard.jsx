@@ -1,6 +1,44 @@
-import { STATUS_MAP, MAKE_ICONS, MAKE_BG, fmtOdo } from '../Data/Vehicles.jsx'
+import { useState, useEffect } from 'react';
+import { STATUS_MAP, MAKE_ICONS, MAKE_BG, fmtOdo } from '../Data/Vehicles.jsx';
 
-const Dashboard = ({ fleet = [], selectedVehicle = null, active = false, onNavigate = () => {}, onSelectVehicle = () => {} }) => {
+const Dashboard = ({ selectedVehicle = null, active = false, onNavigate = () => {}, onSelectVehicle = () => {} }) => {
+  const [vehicles, setVehicles] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const getVehicleId = (vehicle) => vehicle.id ?? vehicle.unit_id ?? vehicle.vehicle_id ?? 'Unknown';
+  const getVehicleMake = (vehicle) => String(vehicle.make || vehicle.brand || '').toUpperCase();
+  const getVehicleStatus = (vehicle) => String(vehicle.status || vehicle.state || 'idle').toLowerCase();
+  const getVehicleFuel = (vehicle) => vehicle.fuel ?? vehicle.fuel_pct ?? 0;
+  const getVehicleOdo = (vehicle) => vehicle.odo ?? vehicle.odometer ?? 0;
+  const getVehiclePlate = (vehicle) => vehicle.plate ?? vehicle.plate_number ?? '-';
+  const getVehicleModel = (vehicle) => vehicle.model ?? vehicle.model_name ?? '';
+  const getVehicleYear = (vehicle) => vehicle.year ?? vehicle.model_year ?? '-';
+
+  useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const [vehiclesRes, alertsRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL}/api/vehicles`),
+        fetch(`${import.meta.env.VITE_API_URL}/api/alerts`)
+      ]);
+      const vehiclesData = await vehiclesRes.json();
+      const alertsData = await alertsRes.json();
+      setVehicles(vehiclesData);
+      setAlerts(alertsData);
+    } catch (err) {
+      console.error('Failed to fetch dashboard data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
+  if (loading) {
+    return <div className="loading">Loading fleet data...</div>;
+  }
+
   return (
     <div id="view-dashboard" className={`view ${active ? 'active' : ''}`}>
 
@@ -51,28 +89,32 @@ const Dashboard = ({ fleet = [], selectedVehicle = null, active = false, onNavig
             </div>
             {/* fleet rows rendered from data */}
             <div>
-              {fleet.map((v, i) => {
-                const st = STATUS_MAP[v.status] || { cls: 'badge-idle', label: v.status }
-                const fuelColor = v.fuel < 20 ? 'var(--red)' : v.fuel < 40 ? 'var(--amber)' : 'var(--accent)'
+              {vehicles.map((v, i) => {
+                const vehicleId = getVehicleId(v)
+                const vehicleMake = getVehicleMake(v)
+                const statusKey = getVehicleStatus(v)
+                const st = STATUS_MAP[statusKey] || { cls: 'badge-idle', label: statusKey }
+                const fuel = getVehicleFuel(v)
+                const fuelColor = fuel < 20 ? 'var(--red)' : fuel < 40 ? 'var(--amber)' : 'var(--accent)'
                 return (
-                  <div key={v.id} className={`fleet-row ${selectedVehicle === i ? 'sel' : ''}`} onClick={() => { onSelectVehicle(i); onNavigate && onNavigate('map') }}>
-                    <div className="v-icon" style={{ background: MAKE_BG[v.make] || 'rgba(255,255,255,0.06)' }}>
-                      {MAKE_ICONS[v.make] || '🚛'}
+                  <div key={`${vehicleId}-${i}`} className={`fleet-row ${selectedVehicle === i ? 'sel' : ''}`} onClick={() => { onSelectVehicle(i); onNavigate && onNavigate('map') }}>
+                    <div className="v-icon" style={{ background: MAKE_BG[vehicleMake] || 'rgba(255,255,255,0.06)' }}>
+                      {MAKE_ICONS[vehicleMake] || '🚛'}
                     </div>
                     <div>
-                      <div className="v-name">Unit {v.id}</div>
-                      <div className="v-model">{v.make} {v.model}</div>
+                      <div className="v-name">Unit {vehicleId}</div>
+                      <div className="v-model">{vehicleMake} {getVehicleModel(v)}</div>
                     </div>
                     <div>
                       <div className={`badge ${st.cls}`}><span className="badge-dot"></span>{st.label}</div>
                     </div>
-                    <div className="v-plate">{v.plate}</div>
-                    <div className="odometer">{fmtOdo(v.odo)}</div>
+                    <div className="v-plate">{getVehiclePlate(v)}</div>
+                    <div className="odometer">{fmtOdo(getVehicleOdo(v))}</div>
                     <div className="fuel-cell">
-                      <div className="fuel-track"><div className="fuel-fill" style={{ width: `${v.fuel}%`, background: fuelColor }}></div></div>
-                      <div className="fuel-pct">{v.fuel}%</div>
+                      <div className="fuel-track"><div className="fuel-fill" style={{ width: `${fuel}%`, background: fuelColor }}></div></div>
+                      <div className="fuel-pct">{fuel}%</div>
                     </div>
-                    <div className="v-plate">{v.year || '-'}</div>
+                    <div className="v-plate">{getVehicleYear(v)}</div>
                   </div>
                 )
               })}
@@ -87,54 +129,39 @@ const Dashboard = ({ fleet = [], selectedVehicle = null, active = false, onNavig
             <div className="panel-action">View all</div>
           </div>
           <div className="alerts-scroll">
-            <div className="alert-row">
-              <div className="alert-ic r">🔴</div>
-              <div>
-                <div className="alert-title">Geofence breach — Unit 3105</div>
-                <div className="alert-meta">Scania F95 · NDH5855 · Left Zone A</div>
+            {alerts.length === 0 ? (
+              <div className="alert-row">
+                <div className="alert-ic b">ℹ️</div>
+                <div>
+                  <div className="alert-title">No active alerts</div>
+                  <div className="alert-meta">Fleet is currently clear</div>
+                </div>
+                <div className="alert-time">Now</div>
               </div>
-              <div className="alert-time">2m ago</div>
-            </div>
-            <div className="alert-row">
-              <div className="alert-ic a">⚠️</div>
-              <div>
-                <div className="alert-title">Service overdue — Unit 4042</div>
-                <div className="alert-meta">MAN 18.232 · CF36HMZN · Oil change</div>
-              </div>
-              <div className="alert-time">1h ago</div>
-            </div>
-            <div className="alert-row">
-              <div className="alert-ic a">⛽</div>
-              <div>
-                <div className="alert-title">Low fuel — Unit 119</div>
-                <div className="alert-meta">MAN 26.35 · NDH2931 · 11% remaining</div>
-              </div>
-              <div className="alert-time">14m ago</div>
-            </div>
-            <div className="alert-row">
-              <div className="alert-ic a">🔧</div>
-              <div>
-                <div className="alert-title">High odometer — Unit 4047</div>
-                <div className="alert-meta">MAN 18.232 · CF36WVZN · 1,139,444 km</div>
-              </div>
-              <div className="alert-time">3h ago</div>
-            </div>
-            <div className="alert-row">
-              <div className="alert-ic b">ℹ️</div>
-              <div>
-                <div className="alert-title">Licence expiry — Driver J. Dlamini</div>
-                <div className="alert-meta">Unit 3101 · NDH5851 · 21 days</div>
-              </div>
-              <div className="alert-time">Today</div>
-            </div>
-            <div className="alert-row">
-              <div className="alert-ic b">ℹ️</div>
-              <div>
-                <div className="alert-title">New vehicle enrolled — Unit 3135</div>
-                <div className="alert-meta">Scania F250 · BT63SJZN · Pending assignment</div>
-              </div>
-              <div className="alert-time">Today</div>
-            </div>
+            ) : alerts.map((alert, index) => {
+              const alertId = alert.id ?? alert.alert_id ?? alert._id ?? index
+              const severity = String(alert.severity || alert.level || 'info').toLowerCase()
+              const iconClass = severity === 'critical' ? 'r' : severity === 'warning' ? 'a' : 'b'
+              const icon = severity === 'critical' ? '🔴' : severity === 'warning' ? '⚠️' : 'ℹ️'
+              const title = alert.title ?? alert.message ?? alert.summary ?? alert.alert_type ?? `Alert ${alertId}`
+              const details = [
+                alert.vehicle ?? alert.unit_id ?? alert.vehicle_id,
+                alert.description ?? alert.details ?? alert.reason
+              ].filter(Boolean).join(' · ')
+              const meta = details || 'No further details'
+              const time = alert.created_at ? new Date(alert.created_at).toLocaleString() : (alert.time ?? 'Recently')
+
+              return (
+                <div key={`${alertId}-${index}`} className="alert-row">
+                  <div className={`alert-ic ${iconClass}`}>{icon}</div>
+                  <div>
+                    <div className="alert-title">{title}</div>
+                    <div className="alert-meta">{meta}</div>
+                  </div>
+                  <div className="alert-time">{time}</div>
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>

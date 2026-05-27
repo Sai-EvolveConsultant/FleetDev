@@ -10,11 +10,12 @@ const Topbar = ({ currentView = 'dashboard', onNavigate = () => {} }) => {
     return () => clearInterval(id)
   }, [])
   const tabs = [
-    { id: 'dashboard', icon: '◈', label: 'Dashboard' },
-    { id: 'map', icon: '◉', label: 'Live Map' },
-    { id: 'maintenance', icon: '◧', label: 'Maintenance' },
-    { id: 'reports', icon: '▦', label: 'Reports' },
-  ];
+   { id: 'dashboard', icon: '◈', label: 'Dashboard' },
+   { id: 'map', icon: '◉', label: 'Live Map' },
+   { id: 'maintenance', icon: '◧', label: 'Maintenance' },
+   { id: 'reports', icon: '▦', label: 'Reports' },
+   { id: 'inventory', icon: '◫', label: 'Inventory' },
+ ];
 
   const handleSwitch = (view) => () => onNavigate(view);
 

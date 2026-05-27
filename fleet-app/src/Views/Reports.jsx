@@ -1,8 +1,29 @@
+import { useState, useEffect } from 'react';
+
 export default function Reports({ fleet = [], active = false }) {
-  const totalVehicles = fleet.length
-  const onRoute = fleet.filter(v => v.status === 'active').length
-  const avgOdo = totalVehicles ? Math.round(fleet.reduce((sum, v) => sum + v.odo, 0) / totalVehicles / 1000) : 0
-  const totalFuel = totalVehicles ? Math.round(fleet.reduce((sum, v) => sum + v.fuel, 0) / totalVehicles) : 0
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/reports/summary`);
+        const data = await res.json();
+        setSummary(data);
+      } catch (err) {
+        console.error('Failed to fetch report summary:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const totalVehicles = summary?.total_vehicles ?? fleet.length
+  const onRoute = summary?.active_vehicles ?? fleet.filter(v => v.status === 'active').length
+  const avgOdo = totalVehicles ? Math.round(fleet.reduce((sum, v) => sum + (Number(v.odometer) || 0), 0) / totalVehicles / 1000) : 0
+  const totalFuel = totalVehicles ? Math.round(fleet.reduce((sum, v) => sum + (Number(v.fuel_pct) || 0), 0) / totalVehicles) : 0
   const makeCounts = fleet.reduce((acc, v) => {
     acc[v.make] = (acc[v.make] || 0) + 1
     return acc
@@ -29,6 +50,10 @@ export default function Reports({ fleet = [], active = false }) {
     return segment
   })
 
+  if (loading) {
+    return <div className="loading">Loading reports...</div>;
+  }
+
   return (
     <div className={`view ${active ? 'active' : ''}`} id="view-reports">
       
@@ -36,7 +61,7 @@ export default function Reports({ fleet = [], active = false }) {
       <div className="report-kpis">
         <div className="kpi blue">
           <div className="kpi-label">On Route</div>
-          <div className="kpi-value">{onRoute}</div>
+          <div className="kpi-value">{summary?.active_vehicles ?? onRoute}</div>
           <div className="kpi-sub">Active dispatches</div>
         </div>
         <div className="kpi green">
@@ -51,8 +76,21 @@ export default function Reports({ fleet = [], active = false }) {
         </div>
         <div className="kpi purple">
           <div className="kpi-label">Fleet Size</div>
-          <div className="kpi-value">{totalVehicles}</div>
+          <div className="kpi-value">{summary?.total_vehicles ?? totalVehicles}</div>
           <div className="kpi-sub">Total vehicles</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px', marginTop: '10px' }}>
+        <div className="kpi red">
+          <div className="kpi-label">Open Alerts</div>
+          <div className="kpi-value">{summary?.open_alerts ?? 0}</div>
+          <div className="kpi-sub">Unresolved issues</div>
+        </div>
+        <div className="kpi amber">
+          <div className="kpi-label">Overdue Maintenance</div>
+          <div className="kpi-value">{summary?.overdue_maintenance ?? 0}</div>
+          <div className="kpi-sub">Requires attention</div>
         </div>
       </div>
 
@@ -66,15 +104,16 @@ export default function Reports({ fleet = [], active = false }) {
           </div>
           <div className="bar-area" id="fuel-bars">
             {fleet.slice(0,6).map((v,idx) => {
-              const color = v.fuel < 20 ? 'var(--red)' : v.fuel < 40 ? 'var(--amber)' : 'var(--accent)'
-              return (
-                <div key={v.id || idx} className="bar-col">
-                  <div className="bar-val-label">Unit {v.id}</div>
-                  <div className="bar-rect" style={{height: `${v.fuel}%`, background: color}}></div>
-                  <div className="bar-month">{v.fuel}%</div>
-                </div>
-              )
-            })}
+              const fuel = Number(v.fuel_pct) || 0
+             const color = fuel < 20 ? 'var(--red)' : fuel < 40 ? 'var(--amber)' : 'var(--accent)'
+             return (
+                <div key={v.unit_id || idx} className="bar-col">
+                <div className="bar-val-label">Unit {v.unit_id}</div>
+                <div className="bar-rect" style={{height: `${fuel}%`, background: color}}></div>
+                <div className="bar-month">{fuel}%</div>
+               </div>
+             )
+           })}
           </div>
         </div>
 
