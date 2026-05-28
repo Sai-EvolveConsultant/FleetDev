@@ -107,25 +107,6 @@ app.post('/api/work-orders', async (req, res) => {
   }
 });
 
-// Update work order status
-app.patch('/api/work-orders/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, assigned_to } = req.body;
-    const result = await pool.query(
-      `UPDATE work_orders 
-       SET status = COALESCE($1, status),
-           assigned_to = COALESCE($2, assigned_to),
-           completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE completed_at END
-       WHERE id = $3
-       RETURNING *`,
-      [status, assigned_to, id]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // Get all inventory items
 app.get('/api/inventory', async (req, res) => {
@@ -295,16 +276,51 @@ app.patch('/api/work-orders/:id/status', async (req, res) => {
     if (!validStatuses.includes(status.toLowerCase())) {
       return res.status(400).json({ error: 'Invalid status' });
     }
+
+    // Get current WO
+    const current = await pool.query('SELECT * FROM work_orders WHERE id = $1', [id]);
+    if (current.rows.length === 0) return res.status(404).json({ error: 'Work order not found' });
+    const wo = current.rows[0];
+
+    // Update status
     const result = await pool.query(
       `UPDATE work_orders SET
         status = $1,
-        completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE completed_at END
-       WHERE id = $2
-       RETURNING *`,
-      [status, id]
+        completed_at = CASE WHEN $2 = 'completed' THEN NOW() ELSE completed_at END
+       WHERE id = $3 RETURNING *`,
+      [status, status, id]
     );
+
+    // Deduct inventory — wrapped separately so it never crashes the status update
+    if (status === 'completed' && wo.status !== 'completed') {
+      try {
+        if (wo.parts_required && wo.parts_required.trim() !== '') {
+          const partsText = wo.parts_required.toLowerCase();
+          const inventoryItems = await pool.query('SELECT * FROM inventory');
+          for (const item of inventoryItems.rows) {
+            const matchByDesc = item.description && partsText.includes(item.description.toLowerCase());
+            const matchByPart = item.part_number && partsText.includes(item.part_number.toLowerCase());
+            if (matchByDesc || matchByPart) {
+              await pool.query(
+                `UPDATE inventory
+                 SET quantity_on_hand = GREATEST(0, quantity_on_hand - 1),
+                     last_updated = NOW()
+                 WHERE id = $1`,
+                [item.id]
+              );
+              console.log(`Deducted 1x ${item.description} from inventory`);
+            }
+          }
+        }
+      } catch (invErr) {
+        // Log but don't fail the request
+        console.error('Inventory deduction error:', invErr.message);
+      }
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
+    console.error('WO STATUS ERROR:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -318,10 +334,30 @@ app.patch('/api/purchase-orders/:id/status', async (req, res) => {
     if (!validStatuses.includes(status.toLowerCase())) {
       return res.status(400).json({ error: 'Invalid status' });
     }
+
+    // Update the PO status
     const result = await pool.query(
       'UPDATE purchase_orders SET status = $1 WHERE id = $2 RETURNING *',
       [status, id]
     );
+
+    // When marked as received — update inventory quantities
+    if (status === 'received') {
+      const lineItems = await pool.query(
+        'SELECT * FROM po_items WHERE po_id = $1',
+        [id]
+      );
+      for (const item of lineItems.rows) {
+        await pool.query(
+          `UPDATE inventory
+           SET quantity_on_hand = quantity_on_hand + $1,
+               last_updated = NOW()
+           WHERE part_number = $2`,
+          [item.quantity, item.part_number]
+        );
+      }
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });

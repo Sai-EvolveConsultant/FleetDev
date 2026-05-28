@@ -7,11 +7,13 @@ import Livemap from './Views/Livemap.jsx'
 import Maintenance from './Views/Maintenance.jsx'
 import Reports from './Views/Reports.jsx'
 import Inventory from './Views/Inventory.jsx'
+import VehicleDetail from './Views/VehicleDetail.jsx'
 
 function App() {
   const [activeView, setActiveView] = useState('dashboard')
   const [selectedVehicle, setSelectedVehicle] = useState(null)
   const [fleet, setFleet] = useState([])
+  const [detailUnitId, setDetailUnitId] = useState(null)
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_URL}/api/vehicles`)
@@ -30,9 +32,9 @@ function App() {
           selectedVehicle={selectedVehicle}
           active={activeView === 'dashboard'}
           onNavigate={setActiveView}
-          onSelectVehicle={(idx) => {
-            setSelectedVehicle(idx)
-            setActiveView('map')
+          onSelectVehicle={(vehicle) => {
+            setDetailUnitId(vehicle.unit_id)
+            setActiveView('vehicle-detail')
           }}
         />
 
@@ -50,6 +52,18 @@ function App() {
        <Inventory active={activeView === 'inventory'} />
 
        <Reports fleet={fleet} active={activeView === 'reports'} />
+       
+       {detailUnitId && (
+       <div className={`view ${activeView === 'vehicle-detail' ? 'active' : ''}`}>
+       <VehicleDetail
+       unitId={detailUnitId}
+       onBack={() => {
+        setDetailUnitId(null)
+        setActiveView('dashboard')
+       }}
+    />
+  </div>
+)}
 
       </div>
 

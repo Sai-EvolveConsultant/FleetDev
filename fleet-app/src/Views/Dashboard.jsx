@@ -97,7 +97,7 @@ const Dashboard = ({ selectedVehicle = null, active = false, onNavigate = () => 
                 const fuel = getVehicleFuel(v)
                 const fuelColor = fuel < 20 ? 'var(--red)' : fuel < 40 ? 'var(--amber)' : 'var(--accent)'
                 return (
-                  <div key={`${vehicleId}-${i}`} className={`fleet-row ${selectedVehicle === i ? 'sel' : ''}`} onClick={() => { onSelectVehicle(i); onNavigate && onNavigate('map') }}>
+                  <div key={`${vehicleId}-${i}`} className={`fleet-row ${selectedVehicle === i ? 'sel' : ''}`} onClick={() => onSelectVehicle(v)}>
                     <div className="v-icon" style={{ background: MAKE_BG[vehicleMake] || 'rgba(255,255,255,0.06)' }}>
                       {MAKE_ICONS[vehicleMake] || '🚛'}
                     </div>
