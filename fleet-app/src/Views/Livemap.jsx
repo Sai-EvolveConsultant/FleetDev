@@ -5,6 +5,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
 function Livemap({ fleet, active = false, selectedVehicle, onSelectVehicle }) {
+  const { apiFetch } = useApi();
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markersAdded = useRef(false);
@@ -12,8 +13,7 @@ function Livemap({ fleet, active = false, selectedVehicle, onSelectVehicle }) {
 
   // Fetch vehicles from API once
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL}/api/vehicles`)
-      .then(res => res.json())
+    apiFetch('/api/vehicles')
       .then(setVehicles)
       .catch(err => console.error('Failed to fetch vehicles:', err));
   }, []);
