@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useApi } from '../hooks/useApi';
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -36,8 +37,6 @@ const woBadgeStyle = (status) => {
   const s = (status || '').toLowerCase();
   if (s === 'completed') return 'wo-done';
   if (s === 'in progress') return 'wo-prog';
-  if (s === 'awaiting parts') return 'wo-sched';
-  if (s === 'cancelled') return 'wo-sched';
   return 'wo-sched';
 };
 
@@ -72,58 +71,28 @@ function FuelTrendChart({ logs }) {
 
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible' }}>
-      {/* Grid lines */}
       {[0, 0.25, 0.5, 0.75, 1].map((t, i) => (
         <g key={i}>
-          <line
-            x1={PAD.left} y1={PAD.top + chartH * (1 - t)}
-            x2={PAD.left + chartW} y2={PAD.top + chartH * (1 - t)}
-            stroke="rgba(255,255,255,0.05)" strokeWidth="1"
-          />
-          <text
-            x={PAD.left - 6} y={PAD.top + chartH * (1 - t) + 4}
-            textAnchor="end" fontSize="9" fill="var(--muted)"
-            fontFamily="Barlow Condensed, sans-serif"
-          >
+          <line x1={PAD.left} y1={PAD.top + chartH * (1 - t)} x2={PAD.left + chartW} y2={PAD.top + chartH * (1 - t)} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+          <text x={PAD.left - 6} y={PAD.top + chartH * (1 - t) + 4} textAnchor="end" fontSize="9" fill="var(--muted)" fontFamily="Barlow Condensed, sans-serif">
             R{Math.round(maxCost * t / 1000)}k
           </text>
         </g>
       ))}
-
-      {/* Area fill */}
       <polygon points={areaPoints} fill="rgba(0,229,160,0.06)" />
-
-      {/* Line */}
       <polyline points={points} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" />
-
-      {/* Data points */}
       {logs.map((l, i) => (
         <g key={i}>
-          <circle cx={xPos(l.odometer)} cy={yPos(l.cost)} r="4"
-            fill="var(--accent)" stroke="var(--surface)" strokeWidth="2" />
-          <text
-            x={xPos(l.odometer)} y={PAD.top + chartH + 14}
-            textAnchor="middle" fontSize="8" fill="var(--muted)"
-            fontFamily="Barlow Condensed, sans-serif"
-          >
+          <circle cx={xPos(l.odometer)} cy={yPos(l.cost)} r="4" fill="var(--accent)" stroke="var(--surface)" strokeWidth="2" />
+          <text x={xPos(l.odometer)} y={PAD.top + chartH + 14} textAnchor="middle" fontSize="8" fill="var(--muted)" fontFamily="Barlow Condensed, sans-serif">
             {(Number(l.odometer) / 1000).toFixed(0)}k
           </text>
-          <text
-            x={xPos(l.odometer)} y={yPos(l.cost) - 9}
-            textAnchor="middle" fontSize="8" fill="var(--accent)"
-            fontFamily="Barlow Condensed, sans-serif"
-          >
+          <text x={xPos(l.odometer)} y={yPos(l.cost) - 9} textAnchor="middle" fontSize="8" fill="var(--accent)" fontFamily="Barlow Condensed, sans-serif">
             {Number(l.litres).toFixed(0)}L
           </text>
         </g>
       ))}
-
-      {/* X axis label */}
-      <text
-        x={PAD.left + chartW / 2} y={H - 2}
-        textAnchor="middle" fontSize="9" fill="var(--muted)"
-        fontFamily="Barlow Condensed, sans-serif"
-      >
+      <text x={PAD.left + chartW / 2} y={H - 2} textAnchor="middle" fontSize="9" fill="var(--muted)" fontFamily="Barlow Condensed, sans-serif">
         Odometer (km)
       </text>
     </svg>
@@ -131,7 +100,8 @@ function FuelTrendChart({ logs }) {
 }
 
 // ── Edit Vehicle Modal ────────────────────────────────────
-function EditVehicleModal({ vehicle, onClose, onSave }) {
+// apiFetch passed as prop since hooks can't be called here directly
+function EditVehicleModal({ vehicle, onClose, onSave, apiFetch }) {
   const [form, setForm] = useState({
     make: vehicle.make || '',
     model: vehicle.model || '',
@@ -161,9 +131,8 @@ function EditVehicleModal({ vehicle, onClose, onSave }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`${API}/api/vehicles/${vehicle.unit_id}/details`, {
+      const res = await apiFetch(`/api/vehicles/${vehicle.unit_id}/details`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
       });
       const updated = await res.json();
@@ -226,6 +195,8 @@ function EditVehicleModal({ vehicle, onClose, onSave }) {
 
 // ── Main VehicleDetail Component ──────────────────────────
 function VehicleDetail({ unitId, onBack }) {
+  // ── ALL hooks at the top ──
+  const { apiFetch } = useApi();
   const [vehicle, setVehicle] = useState(null);
   const [workOrders, setWorkOrders] = useState([]);
   const [fuelLogs, setFuelLogs] = useState([]);
@@ -240,9 +211,9 @@ function VehicleDetail({ unitId, onBack }) {
       setLoading(true);
       try {
         const [vRes, woRes, flRes] = await Promise.all([
-          fetch(`${API}/api/vehicles/${unitId}`),
-          fetch(`${API}/api/vehicles/${unitId}/work-orders`),
-          fetch(`${API}/api/vehicles/${unitId}/fuel-logs`)
+          apiFetch(`/api/vehicles/${unitId}`),
+          apiFetch(`/api/vehicles/${unitId}/work-orders`),
+          apiFetch(`/api/vehicles/${unitId}/fuel-logs`)
         ]);
         setVehicle(await vRes.json());
         setWorkOrders(await woRes.json());
@@ -259,9 +230,8 @@ function VehicleDetail({ unitId, onBack }) {
   const handleWOStatusChange = async (woId, newStatus) => {
     setUpdatingWO(woId);
     try {
-      const res = await fetch(`${API}/api/work-orders/${woId}/status`, {
+      const res = await apiFetch(`/api/work-orders/${woId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
       const updated = await res.json();
@@ -306,15 +276,11 @@ function VehicleDetail({ unitId, onBack }) {
   });
 
   return (
-    <div
-      style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto', padding: '18px 20px', gap: '14px' }}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto', padding: '18px 20px', gap: '14px' }}>
+
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        <button
-          onClick={onBack}
-          style={{ padding: '7px 14px', borderRadius: '8px', border: '1px solid var(--border2)', background: 'transparent', color: 'var(--muted2)', cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '6px' }}
-        >
+        <button onClick={onBack} style={{ padding: '7px 14px', borderRadius: '8px', border: '1px solid var(--border2)', background: 'transparent', color: 'var(--muted2)', cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '6px' }}>
           ← Back
         </button>
         <div style={{ flex: 1 }}>
@@ -326,36 +292,17 @@ function VehicleDetail({ unitId, onBack }) {
             {vehicle.driver_assigned ? ` · Driver: ${vehicle.driver_assigned}` : ''}
           </div>
         </div>
-        <button
-          onClick={() => setShowEdit(true)}
-          style={{ padding: '8px 18px', borderRadius: '8px', border: '1px solid rgba(0,229,160,0.3)', background: 'rgba(0,229,160,0.08)', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em' }}
-        >
+        <button onClick={() => setShowEdit(true)} style={{ padding: '8px 18px', borderRadius: '8px', border: '1px solid rgba(0,229,160,0.3)', background: 'rgba(0,229,160,0.08)', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em' }}>
           ✎ Edit Vehicle
         </button>
       </div>
 
       {/* ── KPI Strip ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
-        <div className="kpi blue">
-          <div className="kpi-label">Active Work Orders</div>
-          <div className="kpi-value">{activeWOs}</div>
-          <div className="kpi-sub">Open / in progress</div>
-        </div>
-        <div className="kpi green">
-          <div className="kpi-label">Fuel Fills Logged</div>
-          <div className="kpi-value">{fuelLogs.length}</div>
-          <div className="kpi-sub">{totalLitres.toFixed(0)}L total</div>
-        </div>
-        <div className="kpi amber">
-          <div className="kpi-label">Fuel Cost (logged)</div>
-          <div className="kpi-value" style={{ fontSize: '22px' }}>R {Math.round(totalFuelCost).toLocaleString()}</div>
-          <div className="kpi-sub">All recorded fills</div>
-        </div>
-        <div className="kpi purple">
-          <div className="kpi-label">Completed WOs</div>
-          <div className="kpi-value">{workOrders.filter(wo => wo.status === 'completed').length}</div>
-          <div className="kpi-sub">Service history</div>
-        </div>
+        <div className="kpi blue"><div className="kpi-label">Active Work Orders</div><div className="kpi-value">{activeWOs}</div><div className="kpi-sub">Open / in progress</div></div>
+        <div className="kpi green"><div className="kpi-label">Fuel Fills Logged</div><div className="kpi-value">{fuelLogs.length}</div><div className="kpi-sub">{totalLitres.toFixed(0)}L total</div></div>
+        <div className="kpi amber"><div className="kpi-label">Fuel Cost (logged)</div><div className="kpi-value" style={{ fontSize: '22px' }}>R {Math.round(totalFuelCost).toLocaleString()}</div><div className="kpi-sub">All recorded fills</div></div>
+        <div className="kpi purple"><div className="kpi-label">Completed WOs</div><div className="kpi-value">{workOrders.filter(wo => wo.status === 'completed').length}</div><div className="kpi-sub">Service history</div></div>
       </div>
 
       {/* ── Section Tabs ── */}
@@ -373,47 +320,26 @@ function VehicleDetail({ unitId, onBack }) {
             const days = daysUntil(date);
             return (
               <div key={label} className="panel" style={{ padding: '18px 20px', borderLeft: `3px solid ${color}` }}>
-                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '10px', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '10px' }}>
-                  {label}
-                </div>
-                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '26px', fontWeight: 800, color, lineHeight: 1 }}>
-                  {fmt(date)}
-                </div>
-                <div style={{ fontSize: '11px', color, marginTop: '6px', fontWeight: 500 }}>
-                  {expiryLabel(date)}
-                </div>
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '10px', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '10px' }}>{label}</div>
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '26px', fontWeight: 800, color, lineHeight: 1 }}>{fmt(date)}</div>
+                <div style={{ fontSize: '11px', color, marginTop: '6px', fontWeight: 500 }}>{expiryLabel(date)}</div>
                 {days !== null && days < 0 && (
-                  <div style={{ marginTop: '10px', padding: '6px 10px', background: 'rgba(255,64,96,0.1)', borderRadius: '6px', fontSize: '11px', color: 'var(--red)', fontWeight: 500 }}>
-                    ⚠ Immediate renewal required
-                  </div>
+                  <div style={{ marginTop: '10px', padding: '6px 10px', background: 'rgba(255,64,96,0.1)', borderRadius: '6px', fontSize: '11px', color: 'var(--red)', fontWeight: 500 }}>⚠ Immediate renewal required</div>
                 )}
                 {days !== null && days >= 0 && days <= 30 && (
-                  <div style={{ marginTop: '10px', padding: '6px 10px', background: 'rgba(255,184,48,0.1)', borderRadius: '6px', fontSize: '11px', color: 'var(--amber)', fontWeight: 500 }}>
-                    ⚠ Renewal due soon
-                  </div>
+                  <div style={{ marginTop: '10px', padding: '6px 10px', background: 'rgba(255,184,48,0.1)', borderRadius: '6px', fontSize: '11px', color: 'var(--amber)', fontWeight: 500 }}>⚠ Renewal due soon</div>
                 )}
               </div>
             );
           })}
-
-          {/* Next service info */}
           {vehicle.next_service_km && (
             <div className="panel" style={{ padding: '18px 20px', gridColumn: '1 / -1' }}>
-              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '10px', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '10px' }}>
-                Next Service Odometer Target
-              </div>
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '10px', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '10px' }}>Next Service Odometer Target</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '26px', fontWeight: 800, color: 'var(--accent2)' }}>
-                  {Number(vehicle.next_service_km).toLocaleString()} km
-                </div>
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '26px', fontWeight: 800, color: 'var(--accent2)' }}>{Number(vehicle.next_service_km).toLocaleString()} km</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ height: '6px', background: 'var(--surface3)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%', borderRadius: '3px',
-                      background: 'var(--accent2)',
-                      width: `${Math.min(100, (Number(vehicle.odometer) / Number(vehicle.next_service_km)) * 100)}%`,
-                      transition: 'width 0.5s ease'
-                    }} />
+                    <div style={{ height: '100%', borderRadius: '3px', background: 'var(--accent2)', width: `${Math.min(100, (Number(vehicle.odometer) / Number(vehicle.next_service_km)) * 100)}%`, transition: 'width 0.5s ease' }} />
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '5px' }}>
                     {Number(vehicle.odometer).toLocaleString()} km current · {(Number(vehicle.next_service_km) - Number(vehicle.odometer)).toLocaleString()} km remaining
@@ -421,9 +347,7 @@ function VehicleDetail({ unitId, onBack }) {
                 </div>
               </div>
               {vehicle.notes && (
-                <div style={{ marginTop: '12px', padding: '10px 14px', background: 'var(--surface2)', borderRadius: '8px', fontSize: '12px', color: 'var(--muted2)', borderLeft: '3px solid var(--border2)' }}>
-                  {vehicle.notes}
-                </div>
+                <div style={{ marginTop: '12px', padding: '10px 14px', background: 'var(--surface2)', borderRadius: '8px', fontSize: '12px', color: 'var(--muted2)', borderLeft: '3px solid var(--border2)' }}>{vehicle.notes}</div>
               )}
             </div>
           )}
@@ -439,61 +363,27 @@ function VehicleDetail({ unitId, onBack }) {
           </div>
           <table className="wo-table">
             <thead>
-              <tr>
-                <th>Description</th>
-                <th>Assigned To</th>
-                <th>Priority</th>
-                <th>Est. Cost</th>
-                <th>Created</th>
-                <th>Status</th>
-                <th>Update Status</th>
-              </tr>
+              <tr><th>Description</th><th>Assigned To</th><th>Priority</th><th>Est. Cost</th><th>Created</th><th>Status</th><th>Update Status</th></tr>
             </thead>
             <tbody>
               {workOrders.length === 0 ? (
-                <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', color: 'var(--muted)', padding: '24px' }}>
-                    No work orders for this vehicle
-                  </td>
-                </tr>
+                <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--muted)', padding: '24px' }}>No work orders for this vehicle</td></tr>
               ) : workOrders.map(wo => (
                 <tr key={wo.id}>
                   <td>{wo.description}</td>
                   <td style={{ color: 'var(--muted2)' }}>{wo.assigned_to || '—'}</td>
                   <td>
-                    <span className={`wo-badge ${wo.priority === 'urgent' ? 'wo-sched' : wo.priority === 'high' ? 'wo-prog' : 'wo-done'}`}
-                      style={wo.priority === 'urgent' ? { background: 'rgba(255,64,96,0.12)', color: 'var(--red)', borderColor: 'rgba(255,64,96,0.3)' } : {}}>
+                    <span className={`wo-badge ${wo.priority === 'urgent' ? 'wo-sched' : wo.priority === 'high' ? 'wo-prog' : 'wo-done'}`} style={wo.priority === 'urgent' ? { background: 'rgba(255,64,96,0.12)', color: 'var(--red)', borderColor: 'rgba(255,64,96,0.3)' } : {}}>
                       {wo.priority || 'normal'}
                     </span>
                   </td>
-                  <td style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>
-                    {wo.estimated_cost ? `R ${Number(wo.estimated_cost).toLocaleString()}` : '—'}
-                  </td>
-                  <td style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '11px', color: 'var(--muted)' }}>
-                    {fmt(wo.created_at)}
-                  </td>
+                  <td style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>{wo.estimated_cost ? `R ${Number(wo.estimated_cost).toLocaleString()}` : '—'}</td>
+                  <td style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '11px', color: 'var(--muted)' }}>{fmt(wo.created_at)}</td>
+                  <td><span className={`wo-badge ${woBadgeStyle(wo.status)}`}>{(wo.status || 'open').charAt(0).toUpperCase() + (wo.status || 'open').slice(1)}</span></td>
                   <td>
-                    <span className={`wo-badge ${woBadgeStyle(wo.status)}`}>
-                      {(wo.status || 'open').charAt(0).toUpperCase() + (wo.status || 'open').slice(1)}
-                    </span>
-                  </td>
-                  <td>
-                    <select
-                      value={wo.status || 'open'}
-                      disabled={updatingWO === wo.id}
-                      onChange={e => handleWOStatusChange(wo.id, e.target.value)}
-                      style={{
-                        background: 'var(--surface2)', border: '1px solid var(--border2)',
-                        borderRadius: '6px', padding: '4px 8px', color: 'var(--text)',
-                        fontSize: '11px', cursor: 'pointer', outline: 'none',
-                        fontFamily: 'Barlow, sans-serif'
-                      }}
-                    >
-                      {WO_STATUSES.map(s => (
-                        <option key={s} value={s}>
-                          {s.charAt(0).toUpperCase() + s.slice(1)}
-                        </option>
-                      ))}
+                    <select value={wo.status || 'open'} disabled={updatingWO === wo.id} onChange={e => handleWOStatusChange(wo.id, e.target.value)}
+                      style={{ background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: '6px', padding: '4px 8px', color: 'var(--text)', fontSize: '11px', cursor: 'pointer', outline: 'none', fontFamily: 'Barlow, sans-serif' }}>
+                      {WO_STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
                     </select>
                   </td>
                 </tr>
@@ -513,42 +403,24 @@ function VehicleDetail({ unitId, onBack }) {
                 Avg {fuelLogs.length > 0 ? (totalLitres / fuelLogs.length).toFixed(0) : 0}L per fill · R {fuelLogs.length > 0 ? Math.round(totalFuelCost / fuelLogs.length).toLocaleString() : 0} avg cost
               </div>
             </div>
-            <div style={{ padding: '16px 18px' }}>
-              <FuelTrendChart logs={fuelLogs} />
-            </div>
+            <div style={{ padding: '16px 18px' }}><FuelTrendChart logs={fuelLogs} /></div>
           </div>
-
-          {/* Fuel log table */}
           <div className="wo-wrap">
             <div className="panel-head" style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
               <div className="panel-title">Fuel Log Detail</div>
             </div>
             <table className="wo-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Odometer (km)</th>
-                  <th>Litres</th>
-                  <th>Cost (R)</th>
-                  <th>Cost/Litre</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Date</th><th>Odometer (km)</th><th>Litres</th><th>Cost (R)</th><th>Cost/Litre</th></tr></thead>
               <tbody>
                 {fuelLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', color: 'var(--muted)', padding: '24px' }}>
-                      No fuel logs recorded
-                    </td>
-                  </tr>
+                  <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--muted)', padding: '24px' }}>No fuel logs recorded</td></tr>
                 ) : [...fuelLogs].reverse().map(log => (
                   <tr key={log.id}>
                     <td style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '11px', color: 'var(--muted)' }}>{fmt(log.logged_at)}</td>
                     <td style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>{Number(log.odometer).toLocaleString()}</td>
                     <td style={{ fontFamily: 'Barlow Condensed, sans-serif', color: 'var(--accent)' }}>{Number(log.litres).toFixed(0)}L</td>
                     <td style={{ fontFamily: 'Barlow Condensed, sans-serif', color: 'var(--accent2)' }}>R {Number(log.cost).toLocaleString()}</td>
-                    <td style={{ fontFamily: 'Barlow Condensed, sans-serif', color: 'var(--muted2)' }}>
-                      R {(Number(log.cost) / Number(log.litres)).toFixed(2)}/L
-                    </td>
+                    <td style={{ fontFamily: 'Barlow Condensed, sans-serif', color: 'var(--muted2)' }}>R {(Number(log.cost) / Number(log.litres)).toFixed(2)}/L</td>
                   </tr>
                 ))}
               </tbody>
@@ -563,8 +435,10 @@ function VehicleDetail({ unitId, onBack }) {
           vehicle={vehicle}
           onClose={() => setShowEdit(false)}
           onSave={(updated) => setVehicle(updated)}
+          apiFetch={apiFetch}
         />
       )}
+
     </div>
   );
 }

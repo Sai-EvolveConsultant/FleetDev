@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useApi } from '../hooks/useApi';
 
-const API = import.meta.env.VITE_API_URL;
+
 
 const WO_STATUSES = ['open', 'in progress', 'awaiting parts', 'completed', 'cancelled'];
 
@@ -12,6 +13,7 @@ const getBadgeClass = (status) => {
 };
 
 const Maintenance = ({ active = false }) => {
+  const { apiFetch } = useApi();
   const [maintenance, setMaintenance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [workOrders, setWorkOrders] = useState([]);
@@ -35,7 +37,7 @@ const Maintenance = ({ active = false }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch(`${API}/api/maintenance`);
+        const res = await apiFetch('/api/maintenance');
         const data = await res.json();
         setMaintenance(data);
       } catch (err) {
@@ -51,7 +53,7 @@ const Maintenance = ({ active = false }) => {
   useEffect(() => {
     const fetchWorkOrders = async () => {
       try {
-        const res = await fetch(`${API}/api/work-orders`);
+        const res = await apiFetch('/api/work-orders');
         const data = await res.json();
         setWorkOrders(Array.isArray(data) ? data : []);
       } catch (err) {
@@ -63,10 +65,16 @@ const Maintenance = ({ active = false }) => {
 
   // Fetch parts list for dropdown
   useEffect(() => {
-    fetch(`${API}/api/parts-list`)
-      .then(res => res.json())
-      .then(data => setPartsList(Array.isArray(data) ? data : []))
-      .catch(err => console.error('Failed to fetch parts list:', err));
+    const fetchPartsList = async () => {
+      try {
+        const res = await apiFetch('/api/parts-list');
+        const data = await res.json();
+        setPartsList(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Failed to fetch parts list:', err);
+      }
+    };
+    fetchPartsList();
   }, []);
 
   // Select a part from the dropdown — auto-fills description and cost
@@ -88,7 +96,7 @@ const Maintenance = ({ active = false }) => {
     }
     setSubmitting(true);
     try {
-      const res = await fetch(`${API}/api/work-orders`, {
+      const res = await apiFetch('/api/work-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
@@ -110,7 +118,7 @@ const Maintenance = ({ active = false }) => {
   const handleWOStatusChange = async (woId, newStatus) => {
     setUpdatingWO(woId);
     try {
-      const res = await fetch(`${API}/api/work-orders/${woId}/status`, {
+      const res = await apiFetch(`/api/work-orders/${woId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })

@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useApi } from '../hooks/useApi';
 
 export default function Reports({ fleet = [], active = false }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { apiFetch } = useApi();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/reports/summary`);
+        const res = await apiFetch('/api/reports/summary');
         const data = await res.json();
         setSummary(data);
       } catch (err) {

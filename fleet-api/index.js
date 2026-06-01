@@ -3,10 +3,16 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 const app = express();
+const { auth } = require('express-oauth2-jwt-bearer');
+const checkJwt = auth({
+  audience: process.env.AUTH0_AUDIENCE,
+  issuerBaseURL: `https://${process.env.AUTH0_DOMAIN}/`
+});
 
 app.use(require('cors')());
 app.use(express.json());
 app.use(require('morgan')('dev'));
+app.use(checkJwt);
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 

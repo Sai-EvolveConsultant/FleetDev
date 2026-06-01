@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useApi } from '../hooks/useApi';
 
-const API = import.meta.env.VITE_API_URL;
+
 
 // PO workflow: each status maps to the next action
 const PO_WORKFLOW = {
@@ -18,6 +19,7 @@ const poBadgeClass = (status) => {
 };
 
 function Inventory({ active = false }) {
+  const { apiFetch } = useApi();
   const [items, setItems] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [partsList, setPartsList] = useState([]);
@@ -45,9 +47,9 @@ function Inventory({ active = false }) {
     const fetchAll = async () => {
       try {
         const [invRes, poRes, partsRes] = await Promise.all([
-          fetch(`${API}/api/inventory`),
-          fetch(`${API}/api/purchase-orders`),
-          fetch(`${API}/api/parts-list`)
+          apiFetch('/api/inventory'),
+          apiFetch('/api/purchase-orders'),
+          apiFetch('/api/parts-list')
         ]);
         setItems(await invRes.json());
         setPurchaseOrders(await poRes.json());
@@ -94,7 +96,7 @@ function Inventory({ active = false }) {
     if (!itemForm.part_number || !itemForm.description) { alert('Part number and description are required.'); return; }
     setSubmitting(true);
     try {
-      const res = await fetch(`${API}/api/inventory`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(itemForm) });
+      const res = await apiFetch('/api/inventory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(itemForm) });
       const newItem = await res.json();
       setItems(prev => { const exists = prev.find(i => i.part_number === newItem.part_number); return exists ? prev.map(i => i.part_number === newItem.part_number ? newItem : i) : [newItem, ...prev]; });
       setShowItemModal(false);
@@ -106,7 +108,7 @@ function Inventory({ active = false }) {
     if (!poForm.supplier || poForm.items.some(i => !i.description || !i.quantity)) { alert('Supplier and all line items are required.'); return; }
     setSubmitting(true);
     try {
-      const res = await fetch(`${API}/api/purchase-orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(poForm) });
+      const res = await apiFetch('/api/purchase-orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(poForm) });
       const newPO = await res.json();
       setPurchaseOrders(prev => [newPO, ...prev]);
       setShowPOModal(false);
@@ -120,7 +122,7 @@ function Inventory({ active = false }) {
     if (!workflow || !workflow.next) return;
     setUpdatingPO(po.id);
     try {
-      const res = await fetch(`${API}/api/purchase-orders/${po.id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: workflow.next }) });
+      const res = await apiFetch(`/api/purchase-orders/${po.id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: workflow.next }) });
       const updated = await res.json();
       setPurchaseOrders(prev => prev.map(p => p.id === po.id ? updated : p));
     } catch (err) { alert('Failed to update purchase order status.'); } finally { setUpdatingPO(null); }

@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { STATUS_MAP, MAKE_ICONS, MAKE_BG, fmtOdo } from '../Data/Vehicles.jsx';
+import { useApi } from '../hooks/useApi';
 
 const Dashboard = ({ selectedVehicle = null, active = false, onNavigate = () => {}, onSelectVehicle = () => {} }) => {
   const [vehicles, setVehicles] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const { apiFetch } = useApi();
 
   const getVehicleId = (vehicle) => vehicle.id ?? vehicle.unit_id ?? vehicle.vehicle_id ?? 'Unknown';
   const getVehicleMake = (vehicle) => String(vehicle.make || vehicle.brand || '').toUpperCase();
@@ -19,8 +22,8 @@ const Dashboard = ({ selectedVehicle = null, active = false, onNavigate = () => 
   const fetchData = async () => {
     try {
       const [vehiclesRes, alertsRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL}/api/vehicles`),
-        fetch(`${import.meta.env.VITE_API_URL}/api/alerts`)
+        apiFetch('/api/vehicles'),
+        apiFetch('/api/alerts')
       ]);
       const vehiclesData = await vehiclesRes.json();
       const alertsData = await alertsRes.json();
