@@ -2,3 +2,7 @@
 node_modules/
 .vite/
 fleet-app/.vite/
+.env
+node_modules/
+.DS_Store
+fleet-app/.env
