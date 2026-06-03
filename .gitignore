@@ -6,3 +6,5 @@ fleet-app/.vite/
 node_modules/
 .DS_Store
 fleet-app/.env
+.DS_Store
+**/.DS_Store
