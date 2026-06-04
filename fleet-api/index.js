@@ -9,7 +9,12 @@ const checkJwt = auth({
   issuerBaseURL: `https://${process.env.AUTH0_DOMAIN}/`
 });
 
-app.use(require('cors')());
+app.use(require('cors')({
+  origin: [
+    'http://localhost:5175',
+    'https://fleet-dev-ecru.vercel.app'
+  ]
+}));
 app.use(express.json());
 app.use(require('morgan')('dev'));
 app.use(checkJwt);
