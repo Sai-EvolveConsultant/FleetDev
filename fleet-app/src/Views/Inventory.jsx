@@ -14,8 +14,8 @@ const PO_WORKFLOW = {
 const poBadgeClass = (status) => {
   if (status === 'received') return 'wo-done';
   if (status === 'purchased') return 'wo-prog';
-  if (status === 'approved') return 'wo-sched';
-  return 'wo-sched';
+  if (status === 'approved') return 'wo-approved';
+  return 'wo-draft';
 };
 
 function Inventory({ active = false }) {
@@ -29,6 +29,8 @@ function Inventory({ active = false }) {
   const [showPOModal, setShowPOModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [updatingPO, setUpdatingPO] = useState(null);
+  const [editingItem, setEditingItem] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const [lineSearches, setLineSearches] = useState(['']);
   const [lineDropdownOpen, setLineDropdownOpen] = useState(null);
@@ -90,6 +92,39 @@ function Inventory({ active = false }) {
   const removePOLine = (index) => {
     setPoForm(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }));
     setLineSearches(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleEditItem = async () => {
+    if (!editingItem.part_number || !editingItem.description) {
+      alert('Part number and description are required.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await apiFetch(`/api/inventory/${editingItem.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingItem)
+      });
+      const updated = await res.json();
+      setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
+      setShowEditModal(false);
+      setEditingItem(null);
+    } catch (err) {
+      alert('Failed to update part.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteItem = async (item) => {
+    if (!window.confirm(`Delete "${item.description}" (${item.part_number})? This cannot be undone.`)) return;
+    try {
+      await apiFetch(`/api/inventory/${item.id}`, { method: 'DELETE' });
+      setItems(prev => prev.filter(i => i.id !== item.id));
+    } catch (err) {
+      alert('Failed to delete part.');
+    }
   };
 
   const handleAddItem = async () => {
@@ -162,7 +197,7 @@ function Inventory({ active = false }) {
               <div className="panel-action" onClick={() => setShowItemModal(true)}>+ Add Part</div>
             </div>
             <table className="wo-table">
-              <thead><tr><th>Part Number</th><th>Description</th><th>Category</th><th>Qty on Hand</th><th>Reorder Level</th><th>Unit Cost</th><th>Supplier</th><th>Status</th></tr></thead>
+              <thead><tr><th>Part Number</th><th>Description</th><th>Category</th><th>Qty on Hand</th><th>Reorder Level</th><th>Unit Cost</th><th>Supplier</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>
                 {items.map(item => {
                   const isOut = item.quantity_on_hand === 0;
@@ -177,6 +212,10 @@ function Inventory({ active = false }) {
                       <td style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>R {Number(item.unit_cost).toLocaleString()}</td>
                       <td style={{ color: 'var(--muted2)', fontSize: '11px' }}>{item.supplier}</td>
                       <td><span className={`wo-badge ${isOut ? 'wo-sched' : isLow ? 'wo-prog' : 'wo-done'}`} style={isOut ? { background: 'rgba(255,64,96,0.12)', color: 'var(--red)', borderColor: 'rgba(255,64,96,0.3)' } : {}}>{isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'In Stock'}</span></td>
+                      <td style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <button onClick={() => { setEditingItem({ ...item }); setShowEditModal(true); }} style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border2)', background: 'transparent', color: 'var(--muted2)', cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '11px', fontWeight: 600 }}>Edit</button>
+                        <button onClick={() => handleDeleteItem(item)} style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,64,96,0.3)', background: 'transparent', color: 'var(--red)', cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '11px', fontWeight: 600 }}>Delete</button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -252,6 +291,38 @@ function Inventory({ active = false }) {
         </div>
       )}
 
+      {/* Edit Part Modal */}
+      {showEditModal && editingItem && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: '14px', padding: '28px', width: '480px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '16px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--white)' }}>Edit Part</div>
+            {[
+              { label: 'Part Number *', key: 'part_number', placeholder: 'e.g. BRK-002' },
+              { label: 'Description *', key: 'description', placeholder: 'e.g. Rear Brake Pads' },
+              { label: 'Category', key: 'category', placeholder: 'e.g. Brakes' },
+              { label: 'Quantity on Hand', key: 'quantity_on_hand', placeholder: 'e.g. 10' },
+              { label: 'Reorder Level', key: 'reorder_level', placeholder: 'e.g. 5' },
+              { label: 'Unit Cost (R)', key: 'unit_cost', placeholder: 'e.g. 850' },
+              { label: 'Supplier', key: 'supplier', placeholder: 'e.g. SA Parts Direct' },
+            ].map(({ label, key, placeholder }) => (
+              <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <label style={labelStyle}>{label}</label>
+                <input
+                  value={editingItem[key] || ''}
+                  onChange={e => setEditingItem(prev => ({ ...prev, [key]: e.target.value }))}
+                  placeholder={placeholder}
+                  style={inputStyle}
+                />
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
+              <button onClick={() => { setShowEditModal(false); setEditingItem(null); }} style={{ padding: '9px 20px', borderRadius: '8px', border: '1px solid var(--border2)', background: 'transparent', color: 'var(--muted2)', cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '13px' }}>Cancel</button>
+              <button onClick={handleEditItem} disabled={submitting} style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: '#000', cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '13px', fontWeight: 700 }}>{submitting ? 'Saving...' : 'Save Changes'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* New PO Modal */}
       {showPOModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -283,9 +354,9 @@ function Inventory({ active = false }) {
                         placeholder="Search or type part description..."
                         style={inputStyle}
                       />
-                      {lineDropdownOpen === index && filtered.length > 0 && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: '8px', zIndex: 200, maxHeight: '150px', overflowY: 'auto', marginTop: '2px' }}>
-                          {filtered.map(part => (
+                      {lineDropdownOpen === index && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: '8px', zIndex: 200, maxHeight: '180px', overflowY: 'auto', marginTop: '2px' }}>
+                          {filtered.length > 0 ? filtered.map(part => (
                             <div key={part.part_number} onClick={() => handleSelectPOPart(index, part)} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                               <div>
                                 <div style={{ fontSize: '12px', color: 'var(--text)' }}>{part.description}</div>
@@ -293,7 +364,17 @@ function Inventory({ active = false }) {
                               </div>
                               <div style={{ fontSize: '11px', color: 'var(--accent)', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700 }}>R {Number(part.unit_cost).toLocaleString()}</div>
                             </div>
-                          ))}
+                          )) : (
+                            <div style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--muted)' }}>No matching parts found</div>
+                          )}
+                          <div
+                            onClick={() => { setShowItemModal(true); setLineDropdownOpen(null); }}
+                            style={{ padding: '8px 12px', cursor: 'pointer', borderTop: '1px solid var(--border2)', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent2)', fontFamily: 'Barlow Condensed, sans-serif', fontSize: '12px', fontWeight: 700 }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                          >
+                            <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> Create New Part
+                          </div>
                         </div>
                       )}
                     </div>

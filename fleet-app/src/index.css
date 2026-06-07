@@ -622,9 +622,11 @@ body::before {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
 }
-.wo-sched   { background: rgba(61,158,255,0.12); color: var(--accent2); border: 1px solid rgba(61,158,255,0.25); }
-.wo-prog    { background: rgba(255,184,48,0.12);  color: var(--amber);  border: 1px solid rgba(255,184,48,0.25); }
-.wo-done    { background: rgba(0,229,160,0.1);   color: var(--accent); border: 1px solid rgba(0,229,160,0.2); }
+.wo-sched    { background: rgba(61,158,255,0.12); color: var(--accent2); border: 1px solid rgba(61,158,255,0.25); }
+.wo-prog     { background: rgba(255,184,48,0.12);  color: var(--amber);  border: 1px solid rgba(255,184,48,0.25); }
+.wo-done     { background: rgba(0,229,160,0.1);   color: var(--accent); border: 1px solid rgba(0,229,160,0.2); }
+.wo-approved { background: rgba(251,191,36,0.12); color: var(--amber);  border: 1px solid rgba(251,191,36,0.3); }
+.wo-draft    { background: rgba(148,163,184,0.12); color: var(--muted2); border: 1px solid rgba(148,163,184,0.3); }
 
 /* ═══════════════════════════════════════════════
    REPORTS VIEW

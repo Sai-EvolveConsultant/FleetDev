@@ -149,6 +149,40 @@ app.post('/api/inventory', async (req, res) => {
   }
 });
 
+// PATCH /api/inventory/:id — update a part
+app.patch('/api/inventory/:id', async (req, res) => {
+  const { id } = req.params;
+  const { part_number, description, category, quantity_on_hand, reorder_level, unit_cost, supplier } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE inventory
+       SET part_number = $1, description = $2, category = $3,
+           quantity_on_hand = $4, reorder_level = $5, unit_cost = $6, supplier = $7,
+           last_updated = NOW()
+       WHERE id = $8::text
+       RETURNING *`,
+      [part_number, description, category, quantity_on_hand, reorder_level, unit_cost, supplier, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Part not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating part:', err);
+    res.status(500).json({ error: 'Failed to update part' });
+  }
+});
+
+// DELETE /api/inventory/:id — delete a part
+app.delete('/api/inventory/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM inventory WHERE id = $1::text', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting part:', err);
+    res.status(500).json({ error: 'Failed to delete part' });
+  }
+});
+
 // Get all purchase orders
 app.get('/api/purchase-orders', async (req, res) => {
   try {
