@@ -312,6 +312,29 @@ app.get('/api/vehicles/:id/fuel-logs', async (req, res) => {
   }
 });
 
+// PATCH /api/work-orders/:id — update editable fields on a WO
+app.patch('/api/work-orders/:id', async (req, res) => {
+  const { id } = req.params;
+  const { due_date, actual_cost, assigned_to, description } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE work_orders
+       SET due_date    = COALESCE($1, due_date),
+           actual_cost = COALESCE($2, actual_cost),
+           assigned_to = COALESCE($3, assigned_to),
+           description = COALESCE($4, description)
+       WHERE id = $5
+       RETURNING *`,
+      [due_date || null, actual_cost || null, assigned_to || null, description || null, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Work order not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating work order:', err);
+    res.status(500).json({ error: 'Failed to update work order' });
+  }
+});
+
 // Update work order status (workflow)
 app.patch('/api/work-orders/:id/status', async (req, res) => {
   try {
